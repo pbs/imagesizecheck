@@ -63,7 +63,7 @@ This is the primary metric of interest and is measured in bytes per pixel. It is
 
 ### Example Output
 
-![imagesizecheck Example Output](imagesizecheck-output-example.png)
+![imagesizecheck Example Output](output-example.png)
 
 ### What Do I Do With Output From This Tool?
 
