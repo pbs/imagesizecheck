@@ -104,6 +104,7 @@ function errorResult() {
 }
 
 function neutralResult() {
+    # this is a white character and is only used to keep "neutral" results aligned properly with "error" and "warn" results
     echo -e "\033[0;97m  $1\033[0m"
 }
 
