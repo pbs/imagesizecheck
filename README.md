@@ -67,6 +67,6 @@ This is the primary metric of interest and is measured in bytes per pixel. It is
 
 ### What Do I Do With Output From This Tool?
 
-It is acknowledged that these thresholds are opinionated and disputable, however we need a starting point in order to visualize where higher image compression might be needed. Notably, when the current thresholds outlined above are applied to 7,214 PBS KIDS website images, only about 3% are flagged "very high" density while only 8% are flagged "high" density. Most of the flagged images were from pretty old websites, which makes sense because the web performance initiatives taken on by many companies, including PBS KIDS, started in only the last few years.
+It is acknowledged that these thresholds are opinionated and disputable, however we need a starting point in order to visualize where higher levels of image compression might be needed. Notably, when the current thresholds outlined above are applied to 7,214 PBS KIDS website images, only about 3% are flagged "very high" density while only 8% are flagged "high" density. Most of the flagged images were from pretty old websites, which makes sense because the web performance initiatives taken on by many companies, including PBS KIDS, started in only the last few years.
 
 Feedback on this script and these thresholds is welcome. Sometimes an image will be flagged that just won't be compressible to the "green level", and that's okay, but we should hope to make that the minority of images. Happy optimizing!

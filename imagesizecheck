@@ -156,14 +156,10 @@ function outputImageRow() {
         "$(addPadding "$human_friendly_size" "$((column_width + 13))")"
         "$file"
     )
-    delim=""
     pos=$(( ${#row[*]} - 1 ))
     last=${row[$pos]}
     for item in "${row[@]}"; do
         echo -n "$item"
-        if [[ "$item" != "$last" ]]; then
-            echo -n "$delim"
-        fi
     done
     echo ""
 }
