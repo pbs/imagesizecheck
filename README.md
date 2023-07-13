@@ -26,7 +26,7 @@ chmod +x /usr/local/bin/imagesizecheck
 Typically you'll just run `imagesizecheck` from a directory tree that contains images of interest. To see how the optional parameters work, run:
 
 ```bash
-imagesizecheck -help
+imagesizecheck --help
 ```
 
 ## How It Works

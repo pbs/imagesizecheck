@@ -61,11 +61,11 @@ function findFiles() {
 if [[ "${*-""}" == "--version" ]]; then
     echo "$(basename "$0") v$version"
     exit
-elif [[ "${*-""}" == "-help" ]]; then
+elif [[ "${*-""}" == "--help" ]]; then
     echo "Recursively lists images over a specified size in kilobytes (defaults to 75 KB). Displays pixel density (bytes per pixel), image dimensions, filesize, and image path."
     echo
-    echo "Usage:   $(basename "$0") [size in kilobytes] [-nosort]"
-    echo "Example: $(basename "$0") 100 -nosort"
+    echo "Usage:   $(basename "$0") [size in kilobytes] [--nosort]"
+    echo "Example: $(basename "$0") 100 --nosort"
     echo "Example: $(basename "$0") --version"
     exit
 else
@@ -79,7 +79,7 @@ else
     fi
 
     if [[ -n "$sort_flag" ]]; then
-        if [[ "$sort_flag" == "-nosort" ]]; then
+        if [[ "$sort_flag" == "--nosort" ]]; then
             sort_mode=false
         else
             echo "Invalid argument: $1. See \`$(basename "$0") -help\` for usage."
