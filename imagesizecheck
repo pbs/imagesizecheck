@@ -4,7 +4,7 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-# See imagesizecheck-README.md for more information about this script.
+# See https://github.com/pbs/imagesizecheck/blob/develop/README.md for more information about this script.
 
 target_pixel_density_jpg=".4"
 target_pixel_density_png="1.25"
