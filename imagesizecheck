@@ -1,0 +1,311 @@
+#!/usr/bin/env bash
+
+# Bash unofficial strict mode: http://redsymbol.net/articles/unofficial-bash-strict-mode/
+set -euo pipefail
+IFS=$'\n\t'
+
+# See imagesizecheck-README.md for more information about this script.
+
+target_pixel_density_jpg=".4"
+target_pixel_density_png="1.25"
+filesize_warning_threshold_in_kb=350
+dimension_warning_threshold=1920
+
+column_width=18
+version="1.0.0"
+
+enormous_count=0
+large_count=0
+small_count=0
+total_checked_count=0
+too_small_count=0
+row_output=""
+nl=$'\n'
+sort_mode=true
+
+function requirePackage() {
+    if ! command -v "$1" > /dev/null; then
+        if [[ "$1" == "identify" ]]; then
+            echo -n "ImageMagick is required. See https://imagemagick.org/script/download.php for installation instructions."
+            if command -v "apt-get" > /dev/null; then
+                echo -n " You could also try \`sudo apt-get install imagemagick\`".
+            fi
+            echo
+        else
+            echo -n "Package $1 is required to use this script."
+            if command -v "apt-get" > /dev/null; then
+                echo -n " You could try \`sudo apt-get install $1\`."
+            fi
+            echo
+        fi
+        exit 1
+    fi
+}
+
+requirePackage "identify"
+
+function findFiles() {
+    local toolname="fd"
+    if command -v fdfind > /dev/null; then
+        toolname="fdfind"
+    fi
+    if command -v "$toolname" > /dev/null; then
+        eval "$toolname $1"
+    else
+        >&2 echo "Consider installing fd to improve performance of this script. See https://github.com/sharkdp/fd#installation for installation instructions."
+        >&2 echo ""
+        eval "find $2"
+    fi
+}
+
+if [[ "${*-""}" == "--version" ]]; then
+    echo "$(basename "$0") v$version"
+    exit
+elif [[ "${*-""}" == "-help" ]]; then
+    echo "Recursively lists images over a specified size in kilobytes (defaults to 75 KB). Displays pixel density (bytes per pixel), image dimensions, filesize, and image path."
+    echo
+    echo "Usage:   $(basename "$0") [size in kilobytes] [-nosort]"
+    echo "Example: $(basename "$0") 100 -nosort"
+    echo "Example: $(basename "$0") --version"
+    exit
+else
+    min_filesize="${1-75}"
+    sort_flag="${2-""}"
+
+    re='^[0-9]+$'
+    if ! [[ $min_filesize =~ $re ]] ; then
+        echo "Error: passed filesize must be a number! See \`$(basename "$0") -help\` for usage."
+        exit 1
+    fi
+
+    if [[ -n "$sort_flag" ]]; then
+        if [[ "$sort_flag" == "-nosort" ]]; then
+            sort_mode=false
+        else
+            echo "Invalid argument: $1. See \`$(basename "$0") -help\` for usage."
+            exit 1
+        fi
+    fi
+
+    result="$(
+        findFiles \
+            '--type f -e jpg -e png -e jpeg' \
+            '. -type f -not \( -path "*/vendor/*" \) -not \( -path "*/node_modules/*" \) -not \( -path "*/.git/*" \) \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" \)' \
+            | sort
+    )"
+
+    if [[ -z "$result" ]]; then
+        echo "No images found."
+        exit 1
+    fi
+
+    total_total_count="$(echo "$result" | wc -l | xargs)"
+fi
+
+function getBytesPerPixel() {
+    width="$1"
+    height="$2"
+    filesize="$3"
+
+    pixel_count="$(( width * height ))"
+    bc <<< "scale=4; $filesize / $pixel_count"
+}
+
+function getDimensions() {
+    input_file="$1"
+    identify -format '%w x %h' "$input_file" || echo "0 x 0"
+}
+
+# color reference: https://stackoverflow.com/a/5947802
+
+function makeGreen() {
+    echo -e "\033[0;32m$1\033[0m"
+}
+
+function makeYellow() {
+    echo -e "\033[0;93m$1\033[0m"
+}
+
+function makeRed() {
+  echo -e "\033[0;91m$1\033[0m"
+}
+
+function goodResult() {
+    echo -e "$(makeGreen "✔ $1")"
+}
+
+function warnResult() {
+    echo -e "$(makeYellow "⚠ $1")"
+}
+
+function errorResult() {
+    echo -e "$(makeRed "✘ $1")"
+}
+
+function neutralResult() {
+    echo -e "\033[0;97m  $1\033[0m"
+}
+
+function bytesToKilobytes() {
+    echo "$(bc <<< "scale=2; $1 / 1024") KB"
+}
+
+function addPadding() {
+    str="$1"
+    desired_length="${2-"$column_width"}"
+    length="${#str}"
+    for (( i=0; i < desired_length - length; i++ )); do
+        str+=" "
+    done
+    echo "$str"
+}
+
+function repeatStr() {
+    chars="$1"
+    desired_length="${2-"$column_width"}"
+    str=""
+    for (( i=0; i < desired_length; i++ )); do
+        str+="$chars"
+    done
+    echo "$str"
+}
+
+function percentageOfTotal() {
+    echo "~$(bc <<< "scale=2; ($1 / $2) * 100")%"
+}
+
+headings=(
+    "Bytes / Pixel"
+    "Dimensions"
+    "Image Size"
+    "Image Path"
+)
+
+function outputHeadings() {
+    pos=$(( ${#headings[*]} - 1 ))
+    last=${headings[$pos]}
+    for heading in "${headings[@]}"; do
+        echo -n "$(addPadding "$heading" $((column_width - 3)))"
+        if [[ "$heading" != "$last" ]]; then
+            echo -n " | "
+        fi
+    done
+    echo ""
+    repeatStr "-" $((column_width * $((${#headings[@]} + 2))))
+}
+
+function outputImageRow() {
+    row=(
+        "$(addPadding "$bytes_per_pixel" "$((column_width + 9))")"
+        "$(addPadding "$pretty_dimensions" "$((column_width + 11))")"
+        "$(addPadding "$human_friendly_size" "$((column_width + 13))")"
+        "$file"
+    )
+    delim=""
+    pos=$(( ${#row[*]} - 1 ))
+    last=${row[$pos]}
+    for item in "${row[@]}"; do
+        echo -n "$item"
+        if [[ "$item" != "$last" ]]; then
+            echo -n "$delim"
+        fi
+    done
+    echo ""
+}
+
+function outputFooter() {
+    echo
+    echo "• $total_checked_count / $total_total_count ($(percentageOfTotal $total_checked_count "$total_total_count")) images checked (> $min_filesize KB)."
+    echo "• $too_small_count / $total_total_count ($(percentageOfTotal $too_small_count "$total_total_count")) images too small to check (<= $min_filesize KB)."
+    echo
+
+    if (( enormous_count > 0 )); then
+        enormous_result="$(errorResult "")"
+        echo "$enormous_result$enormous_count / $total_checked_count ($(percentageOfTotal $enormous_count $total_checked_count)) images found to have an $(makeRed "very high") pixel density."
+    fi
+
+    if (( large_count > 0 )); then
+        large_result="$(warnResult "")"
+        echo "$large_result$large_count / $total_checked_count ($(percentageOfTotal $large_count $total_checked_count)) images found to have a $(makeYellow "high") pixel density."
+    fi
+
+    if (( large_count == 0 )) && (( enormous_count == 0 )); then
+        small_result="$(goodResult "")"
+        echo "$small_result$small_count / $total_checked_count ($(percentageOfTotal $small_count $total_checked_count)) images found to have a $(makeGreen "low") pixel density."
+    fi
+}
+
+function removeTrailingNewline() {
+    echo "$1" | awk 'NR>1{print PREV} {PREV=$0} END{printf("%s",$0)}'
+}
+
+function go() {
+    outputHeadings
+
+    while read -r file; do
+        filesize="$(wc -c < "$file" | xargs)"
+
+        if [[ "$filesize" -gt $(( min_filesize * 1024 )) ]]; then
+            total_checked_count=$((total_checked_count+1))
+
+            # dimensions
+            dimensions="$(getDimensions "$file")"
+            width="$(echo "$dimensions" | awk '{print $1}')"
+            height="$(echo "$dimensions" | awk '{print $3}')"
+            raw_bpp="$(getBytesPerPixel "$width" "$height" "$filesize")"
+            if (( width > (dimension_warning_threshold * 2) )) || (( height > (dimension_warning_threshold * 2)  )); then
+                pretty_dimensions="$(errorResult "$dimensions")"
+            elif (( width > dimension_warning_threshold )) || (( height > dimension_warning_threshold )); then
+                pretty_dimensions="$(warnResult "$dimensions")"
+            else
+                pretty_dimensions="$(neutralResult "$dimensions")"
+            fi
+
+            # pixel density
+            target_pixel_density="$target_pixel_density_jpg"
+            if [[ "$file" == *.png ]]; then
+                target_pixel_density="$target_pixel_density_png"
+            fi
+            spaced_bpp="$(addPadding "$raw_bpp" 6)"
+            if (( $(echo "$raw_bpp > $target_pixel_density * 2" | bc -l) )); then
+                enormous_count=$((enormous_count+1))
+                bytes_per_pixel="$(errorResult "$spaced_bpp")"
+            elif (( $(echo "$raw_bpp > $target_pixel_density" | bc -l) )); then
+                large_count=$((large_count+1))
+                bytes_per_pixel="$(warnResult "$spaced_bpp")"
+            else
+                small_count=$((small_count+1))
+                bytes_per_pixel="$(goodResult "$spaced_bpp")"
+            fi
+
+            # filesize
+            if [[ "$filesize" -gt $(( filesize_warning_threshold_in_kb * 1024 * 2 )) ]]; then
+                human_friendly_size="$(errorResult "$(bytesToKilobytes "$filesize")")"
+            elif [[ "$filesize" -gt $(( filesize_warning_threshold_in_kb * 1024 )) ]]; then
+                human_friendly_size="$(warnResult "$(bytesToKilobytes "$filesize")")"
+            else
+                human_friendly_size="$(neutralResult "$(bytesToKilobytes "$filesize")")"
+            fi
+
+            if [[ "$sort_mode" == "true" ]]; then
+                row_output="$row_output$(outputImageRow)$nl"
+            else
+                outputImageRow
+            fi
+        else
+            too_small_count=$((too_small_count+1))
+        fi
+    done <<< "$result"
+
+    if [[ "$sort_mode" == "true" ]]; then
+        removeTrailingNewline "$row_output" | sort -n
+    fi
+
+    outputFooter
+
+    if [[ "$large_count" -gt 0 ]] || [[ "$enormous_count" -gt 0 ]]; then
+        exit 1
+    fi
+}
+
+go "${@-""}"
