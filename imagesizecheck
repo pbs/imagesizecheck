@@ -212,7 +212,7 @@ function init() {
 
         re='^[0-9]+$'
         if ! [[ $min_filesize =~ $re ]] ; then
-            echo "Error: passed filesize must be a number! See \`$(basename "$0") -help\` for usage."
+            echo "Error: passed filesize must be a number! See \`$(basename "$0") --help\` for usage."
             exit 1
         fi
 
@@ -220,7 +220,7 @@ function init() {
             if [[ "$sort_flag" == "--nosort" ]]; then
                 sort_mode=false
             else
-                echo "Invalid argument: $1. See \`$(basename "$0") -help\` for usage."
+                echo "Invalid argument: $1. See \`$(basename "$0") --help\` for usage."
                 exit 1
             fi
         fi
