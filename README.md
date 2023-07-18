@@ -54,7 +54,7 @@ This is the primary metric of interest and is measured in bytes per pixel. It is
 #### Filesize (in kilobytes)
 
 * Red: exceeds 700 KB.
-* Yellow: exceeds 300 KB.
+* Yellow: exceeds 350 KB.
 * White: does not exceed red and yellow thresholds. This is the target for most images.
 
 #### Image Path
